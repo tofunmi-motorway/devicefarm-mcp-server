@@ -2,6 +2,27 @@
 
 A Model Context Protocol (MCP) server that provides tools for AWS Device Farm remote access sessions and mobile device automation via Appium.
 
+## How It Works
+
+This MCP server leverages [AWS Device Farm's managed Appium endpoint feature](https://aws.amazon.com/about-aws/whats-new/2025/11/aws-device-farm-managed-appium-endpoint/) to enable programmatic mobile device automation.
+
+![Appium Endpoint Architecture](images/appium-endpoint.png)
+
+### Architecture Overview
+
+1. **Create Remote Access Session** - The MCP server creates a Device Farm session and receives a managed Appium endpoint URL
+2. **WebdriverIO Connection** - Connects to the Appium endpoint using WebdriverIO client over HTTPS
+3. **Appium Commands** - Executes mobile automation commands (tap, swipe, type, etc.) via the W3C WebDriver protocol
+4. **Real Device Control** - Commands are executed on real physical devices in AWS Device Farm
+
+### Key Benefits
+
+- **No Local Appium Server** - AWS manages the Appium infrastructure
+- **Real Devices** - Test on actual Android and iOS devices
+- **Secure HTTPS** - All communication over encrypted connections
+- **Scalable** - Access to AWS Device Farm's device fleet
+- **MCP Integration** - Seamless integration with AI assistants via Model Context Protocol
+
 ## Features
 
 ### Device Farm Session Management
@@ -173,10 +194,58 @@ App installed successfully. ARN: arn:aws:devicefarm:...
 
 ## Architecture
 
+This MCP server bridges AI assistants with AWS Device Farm's real device cloud through the managed Appium endpoint:
+
+```
+┌─────────────┐      MCP Protocol      ┌──────────────────┐
+│ AI Assistant│ ◄──────────────────────► │  MCP Server      │
+│ (Q/Claude)  │      Tool Calls         │  (This Project)  │
+└─────────────┘                         └────────┬─────────┘
+                                                 │
+                                    WebdriverIO  │ HTTPS
+                                    W3C Protocol │
+                                                 ▼
+                                        ┌────────────────┐
+                                        │ Device Farm    │
+                                        │ Appium Endpoint│
+                                        └────────┬───────┘
+                                                 │
+                                                 ▼
+                                        ┌────────────────┐
+                                        │  Real Device   │
+                                        │  (Android/iOS) │
+                                        └────────────────┘
+```
+
+### Technical Stack
+
 - **MCP Protocol**: Uses `@modelcontextprotocol/sdk` for tool registration
 - **WebdriverIO**: Appium client for mobile automation
-- **AWS SDK**: Device Farm API integration
+- **AWS SDK**: Device Farm API integration (`CreateRemoteAccessSession`, `InstallToRemoteAccessSession`)
 - **HTTPS Upload**: Direct S3 upload for APK files
+- **Managed Appium**: AWS-hosted Appium server (no local setup required)
+
+### Session Workflow
+
+1. **Session Creation**
+   ```javascript
+   CreateRemoteAccessSession → Returns Appium endpoint URL
+   ```
+
+2. **App Installation** (Automatic)
+   ```javascript
+   InstallToRemoteAccessSession → Installs APK to device
+   ```
+
+3. **Appium Connection**
+   ```javascript
+   WebdriverIO connects to: https://devicefarm-interactive-global.us-west-2.api.aws/remote-endpoint/...
+   ```
+
+4. **Mobile Automation**
+   ```javascript
+   execute('mobile: clickGesture', {x, y}) → Device performs action
+   ```
 
 ## Troubleshooting
 
