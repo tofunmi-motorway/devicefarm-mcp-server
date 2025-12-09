@@ -8,6 +8,8 @@ This MCP server leverages [AWS Device Farm's managed Appium endpoint feature](ht
 
 ![Appium Endpoint Architecture](images/appium-endpoint.png)
 
+> 📹 **Demo Video**: [Watch exploratory testing demo](images/Exploratory-Testing.mp4) (download to view)
+
 ### Architecture Overview
 
 1. **Create Remote Access Session** - The MCP server creates a Device Farm session and receives a managed Appium endpoint URL
