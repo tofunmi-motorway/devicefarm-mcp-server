@@ -247,9 +247,9 @@ This MCP server bridges AI assistants with AWS Device Farm's real device cloud t
 ```
 ┌─────────────┐      MCP Protocol      ┌──────────────────┐
 │ AI Assistant│ ◄──────────────────────► │  MCP Server      │
-│ (Q/Claude)  │      Tool Calls         │  (This Project)  │
-└─────────────┘                         └────────┬─────────┘
-                                                 │
+│ Kiro CLI /  │      Tool Calls         │  (This Project)  │
+│ Claude Code │                         └────────┬─────────┘
+└─────────────┘                                  │
                                     WebdriverIO  │ HTTPS
                                     W3C Protocol │
                                                  ▼
