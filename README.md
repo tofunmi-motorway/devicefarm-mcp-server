@@ -1,5 +1,8 @@
 # AWS Device Farm MCP Server
 
+[![npm version](https://badge.fury.io/js/devicefarm-mcp-server.svg)](https://www.npmjs.com/package/devicefarm-mcp-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Model Context Protocol (MCP) server that provides tools for AWS Device Farm remote access sessions and mobile device automation via Appium.
 
 ## How It Works
@@ -65,15 +68,24 @@ This MCP server leverages [AWS Device Farm's managed Appium endpoint feature](ht
 
 ## Installation
 
-### Option 1: NPM Package (Recommended)
+### Quick Start with npx (Recommended)
+
+No installation needed! Just run:
 
 ```bash
 npx devicefarm-mcp-server
 ```
 
-No installation needed! The package will be downloaded and executed automatically.
+The package will be automatically downloaded and executed.
 
-### Option 2: From Source
+### Install Globally
+
+```bash
+npm install -g devicefarm-mcp-server
+devicefarm-mcp-server
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/yoreland/devicefarm-mcp-server.git
