@@ -4,10 +4,10 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const { CallToolRequestSchema, ListToolsRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 const { remote } = require('webdriverio');
 const { DeviceFarmClient, CreateUploadCommand, GetUploadCommand, CreateRemoteAccessSessionCommand, GetRemoteAccessSessionCommand, ListDevicesCommand, StopRemoteAccessSessionCommand, ListRemoteAccessSessionsCommand, InstallToRemoteAccessSessionCommand } = require('@aws-sdk/client-device-farm');
-const fs = require('fs');
-const https = require('https');
-const { URL } = require('url');
-const path = require('path');
+const fs = require('node:fs');
+const https = require('node:https');
+const { URL } = require('node:url');
+const path = require('node:path');
 
 validateRequiredEnvVariables();
 
@@ -124,12 +124,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     { name: 'mobile_swipe_on_screen', description: 'Swipe gesture', inputSchema: { type: 'object', properties: { direction: { type: 'string', enum: ['up', 'down', 'left', 'right'] }, percent: { type: 'number' } }, required: ['direction'] } },
     { name: 'mobile_type_keys', description: 'Type text', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
     { name: 'mobile_press_button', description: 'Press device button', inputSchema: { type: 'object', properties: { button: { type: 'string', enum: ['home', 'back'] } }, required: ['button'] } },
+    { name: 'mobile_hide_keyboard', description: 'Hide the on-screen keyboard', inputSchema: { type: 'object', properties: {} } },
     { name: 'mobile_launch_app', description: 'Launch app by package ID', inputSchema: { type: 'object', properties: { appId: { type: 'string' } }, required: ['appId'] } },
     { name: 'mobile_terminate_app', description: 'Terminate app', inputSchema: { type: 'object', properties: { appId: { type: 'string' } }, required: ['appId'] } },
     { name: 'mobile_install_app', description: 'Install APK via AWS Device Farm', inputSchema: { type: 'object', properties: { apkPath: { type: 'string' } }, required: ['apkPath'] } },
     { name: 'mobile_uninstall_app', description: 'Uninstall app', inputSchema: { type: 'object', properties: { appId: { type: 'string' } }, required: ['appId'] } },
     { name: 'mobile_list_apps', description: 'Check if app is installed', inputSchema: { type: 'object', properties: { appId: { type: 'string' } }, required: ['appId'] } },
     { name: 'mobile_get_device_info', description: 'Get device information', inputSchema: { type: 'object', properties: {} } },
+    { name: 'mobile_switch_to_webview', description: 'Switch to WebView context for web content interaction', inputSchema: { type: 'object', properties: {} } },
+    { name: 'mobile_switch_to_native', description: 'Switch back to native app context', inputSchema: { type: 'object', properties: {} } },
+    { name: 'mobile_execute_script', description: 'Execute JavaScript in WebView context', inputSchema: { type: 'object', properties: { script: { type: 'string', description: 'JavaScript code to execute' } }, required: ['script'] } },
+    { name: 'mobile_get_contexts', description: 'List available contexts (NATIVE_APP, WEBVIEW)', inputSchema: { type: 'object', properties: {} } },
+    { name: 'mobile_configure_deeplinks', description: 'Configure app to handle deep links automatically', inputSchema: { type: 'object', properties: { appId: { type: 'string', description: 'App package ID' } }, required: ['appId'] } },
   ]
 }));
 
@@ -137,7 +143,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
+    const currentDriver = await getDriver();
+
     let result;
+
     switch (name) {
       case 'create_session':
         let deviceArn = args.deviceArn;
@@ -290,66 +299,80 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case 'mobile_get_screen_size':
-        const d = await getDriver();
-        result = await d.getWindowSize();
+        result = await currentDriver.getWindowSize();
         break;
       case 'mobile_get_orientation':
-        result = await (await getDriver()).getOrientation();
+        result = await currentDriver.getOrientation();
         break;
       case 'mobile_set_orientation':
-        await (await getDriver()).setOrientation(args.orientation);
+        await currentDriver.setOrientation(args.orientation);
         result = 'Orientation set';
         break;
-      case 'mobile_save_screenshot':
-        const screenshot = await (await getDriver()).takeScreenshot();
+      case 'mobile_save_screenshot': {
+        const screenshot = await currentDriver.takeScreenshot();
         fs.writeFileSync(args.path, screenshot, 'base64');
         result = `Screenshot saved to ${args.path}`;
         break;
+      }
       case 'mobile_list_elements_on_screen':
-        result = await (await getDriver()).getPageSource();
+        result = await currentDriver.getPageSource();
         break;
       case 'mobile_click_on_screen_at_coordinates':
-        await (await getDriver()).execute('mobile: clickGesture', { x: args.x, y: args.y });
+        await currentDriver.execute('mobile: clickGesture', { x: args.x, y: args.y });
         result = 'Clicked';
         break;
       case 'mobile_double_tap_on_screen':
-        await (await getDriver()).execute('mobile: doubleClickGesture', { x: args.x, y: args.y });
+        await currentDriver.execute('mobile: doubleClickGesture', { x: args.x, y: args.y });
         result = 'Double tapped';
         break;
       case 'mobile_long_press_on_screen_at_coordinates':
-        await (await getDriver()).execute('mobile: longClickGesture', { x: args.x, y: args.y });
+        await currentDriver.execute('mobile: longClickGesture', { x: args.x, y: args.y });
         result = 'Long pressed';
         break;
-      case 'mobile_swipe_on_screen':
-        const size = await (await getDriver()).getWindowSize();
-        await (await getDriver()).execute('mobile: swipeGesture', {
-          left: 100, top: size.height / 2, width: size.width - 200, height: 100,
-          direction: args.direction, percent: args.percent || 0.75
+      case 'mobile_swipe_on_screen': {
+        const size = await currentDriver.getWindowSize();
+        const percent = args.percent || 0.75;
+
+        // Use larger swipe area to avoid accidental clicks
+        await currentDriver.execute('mobile: swipeGesture', {
+          left: size.width * 0.1,           // 10% from left
+          top: size.height * 0.2,            // 20% from top
+          width: size.width * 0.8,           // 80% of screen width
+          height: size.height * 0.6,         // 60% of screen height
+          direction: args.direction,
+          percent: percent
         });
         result = 'Swiped';
         break;
+      }
       case 'mobile_type_keys':
-        await (await getDriver()).execute('mobile: type', { text: args.text });
+        await currentDriver.execute('mobile: type', { text: args.text });
         result = 'Text typed';
         break;
-      case 'mobile_press_button':
+      case 'mobile_press_button': {
         const keycode = args.button === 'home' ? 3 : 4;
-        await (await getDriver()).execute('mobile: pressKey', { keycode });
+        await currentDriver.execute('mobile: pressKey', {keycode});
         result = `${args.button} button pressed`;
+        break;
+      }
+      case 'mobile_hide_keyboard':
+        await currentDriver.hideKeyboard('tapOutside');
+
+        result = 'Keyboard hidden';
         break;
       case 'mobile_launch_app':
         // 使用 monkey 命令启动应用（最可靠的方式）
-        await (await getDriver()).execute('mobile: shell', {
+        await currentDriver.execute('mobile: shell', {
           command: 'monkey',
           args: ['-p', args.appId, '-c', 'android.intent.category.LAUNCHER', '1']
         });
         result = 'App launched';
         break;
       case 'mobile_terminate_app':
-        await (await getDriver()).execute('mobile: terminateApp', { appId: args.appId });
+        await currentDriver.execute('mobile: terminateApp', { appId: args.appId });
         result = 'App terminated';
         break;
-      case 'mobile_install_app':
+      case 'mobile_install_app': {
         if (!currentSessionArn) throw new Error('No active session');
 
         const apkPath = path.isAbsolute(args.apkPath) ? args.apkPath : path.resolve(process.cwd(), args.apkPath);
@@ -368,7 +391,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let attempts = 0;
         while (status !== 'SUCCEEDED' && status !== 'FAILED' && attempts < 30) {
           await new Promise(r => setTimeout(r, 2000));
-          const getCmd = new GetUploadCommand({ arn: upload.upload.arn });
+          const getCmd = new GetUploadCommand({arn: upload.upload.arn});
           const uploadStatus = await dfClient.send(getCmd);
           status = uploadStatus.upload.status;
           attempts++;
@@ -384,17 +407,49 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         result = `App installed successfully. ARN: ${upload.upload.arn}`;
         break;
+      }
       case 'mobile_uninstall_app':
-        await (await getDriver()).execute('mobile: removeApp', { appId: args.appId });
+        await currentDriver.execute('mobile: removeApp', { appId: args.appId });
         result = 'App uninstalled';
         break;
-      case 'mobile_list_apps':
-        const isInstalled = await (await getDriver()).execute('mobile: isAppInstalled', { appId: args.appId });
-        result = { appId: args.appId, installed: isInstalled };
+      case 'mobile_list_apps': {
+        const isInstalled = await currentDriver.execute('mobile: isAppInstalled', {appId: args.appId});
+        result = {appId: args.appId, installed: isInstalled};
         break;
+      }
       case 'mobile_get_device_info':
-        result = await (await getDriver()).execute('mobile: deviceInfo');
+        result = await currentDriver.execute('mobile: deviceInfo');
         break;
+      case 'mobile_switch_to_webview': {
+        const contexts = await currentDriver.getContexts();
+        const webviewContext = contexts.find(ctx => ctx.includes('WEBVIEW'));
+        if (!webviewContext) throw new Error('No WebView context found. Available contexts: ' + contexts.join(', '));
+        await currentDriver.switchContext(webviewContext);
+        result = `Switched to ${webviewContext}`;
+        break;
+      }
+      case 'mobile_switch_to_native':
+        await currentDriver.switchContext('NATIVE_APP');
+        result = 'Switched to native context';
+        break;
+      case 'mobile_execute_script':
+        result = await currentDriver.execute(args.script);
+        break;
+      case 'mobile_get_contexts':
+        result = await currentDriver.getContexts();
+        break;
+      case 'mobile_configure_deeplinks': {
+        const packageId = args.appId;
+
+        // Approve all declared deep link domains for the app
+        await currentDriver.execute('mobile: shell', {
+          command: 'pm',
+          args: ['set-app-links-user-selection', '--user', '0', '--package', packageId, 'true', 'all']
+        });
+
+        result = 'Deep links configured';
+        break;
+      }
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
