@@ -1,6 +1,6 @@
 {
   "name": "devicefarm-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Model Context Protocol server for AWS Device Farm mobile automation via Appium",
   "main": "devicefarm-mcp-server.js",
   "bin": {
@@ -40,7 +40,7 @@
   ],
   "dependencies": {
     "@aws-sdk/client-device-farm": "^3.947.0",
-    "@modelcontextprotocol/sdk": "^1.24.3",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "appium": "^2.19.0",
     "webdriverio": "^9.21.0"
   }
