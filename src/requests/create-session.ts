@@ -52,7 +52,7 @@ export class CreateSession extends Request<
 > {
 	public readonly info = {
 		name: Tool.CREATE_SESSION,
-		description: 'Create Device Farm remote session. Optional apkPath uploads APK to project (manual install required)',
+		description: 'Create Device Farm remote session. Optional apkPath uploads APK to project',
 		inputSchema: createSessionSchema,
 	} as const;
 
@@ -181,7 +181,9 @@ export class CreateSession extends Request<
 				// If a specific platform is requested and this device is not in that platform, skip it.
 				(request.platform && device.platform !== request.platform)
 				// If a specific os is requested and this device is not on the os, skip it.
-				|| (request.os && device.os !== request.os)
+				// Intentionally not doing a strict equality here (!==) because the
+				// requester might send an actual number (e.g. 11 instead of "11").
+				|| (request.os && device.os != request.os)
 				// If a specific device name is requested and this device is of a different name, skip it.
 				|| (request.preferredDevices && !deviceNameMatchesPreferences(device.name))
 			) {
