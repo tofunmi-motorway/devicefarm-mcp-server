@@ -14,10 +14,6 @@ export class Session {
 	 * Stop the current session.
 	 */
 	public stop(): void {
-		if (this.currentSession) {
-			throw new Error('Session has not started');
-		}
-
 		this.currentSession = undefined;
 	}
 

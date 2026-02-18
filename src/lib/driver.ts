@@ -30,7 +30,7 @@ export class Driver {
 	 */
 	public async disconnect(): Promise<void> {
 		if (!this.connection) {
-			throw new Error('No connection found.');
+			return;
 		}
 
 		await this.connection.deleteSession();
