@@ -33,7 +33,7 @@ This MCP server leverages [AWS Device Farm's managed Appium endpoint feature](ht
 ## Features
 
 ### Device Farm Session Management
-- **create_session**: Create remote access sessions with optional APK installation
+- **create_session**: Create remote access sessions with optional app installation
 - **list_devices**: List available devices by platform
 - **list_active_sessions**: View all active sessions
 - **stop_session**: Stop the current session
@@ -44,21 +44,30 @@ This MCP server leverages [AWS Device Farm's managed Appium endpoint feature](ht
 - **mobile_set_orientation**: Set screen orientation (PORTRAIT/LANDSCAPE)
 - **mobile_save_screenshot**: Capture and save screenshots
 - **mobile_list_elements_on_screen**: Get page source XML
-- **mobile_click_on_screen_at_coordinates**: Click at specific coordinates
-- **mobile_double_tap_on_screen**: Double tap at coordinates
+- **mobile_tap_on_screen_at_coordinates**: Tap at specific coordinates
+- **mobile_double_tap_on_screen_at_coordinates**: Double tap at coordinates
 - **mobile_long_press_on_screen_at_coordinates**: Long press at coordinates
 - **mobile_swipe_on_screen**: Swipe gestures (up/down/left/right)
 - **mobile_type_keys**: Type text input
-- **mobile_press_button**: Press device buttons (home/back)
+- **mobile_press_button**: Press device buttons (home/back) - Android only
+- **mobile_hide_keyboard**: Hide the on-screen keyboard
 
 ### App Management
-- **mobile_launch_app**: Launch app by package ID
+- **mobile_launch_app**: Launch app by package ID (bundleId for iOS, packageId for Android)
 - **mobile_terminate_app**: Terminate running app
-- **mobile_install_app**: Upload and install APK to current session
+- **mobile_install_app**: Upload and install app (APK/IPA) to current session
 - **mobile_uninstall_app**: Uninstall app from device
-- **mobile_list_apps**: Check if app is installed
+- **mobile_check_app_is_installed**: Check if app is installed
 - **mobile_get_device_info**: Get device information
-- **install_and_launch_app**: Get instructions for manual installation
+
+### Context Switching (Hybrid Apps)
+- **mobile_get_contexts**: List available contexts (NATIVE_APP, WEBVIEW)
+- **mobile_switch_to_webview**: Switch to WebView context for web content interaction
+- **mobile_switch_to_native**: Switch back to native app context
+- **mobile_execute_script**: Execute JavaScript in WebView context
+
+### Advanced
+- **mobile_configure_deeplinks**: Configure app to handle deep links automatically - Android only
 
 ## Prerequisites
 
@@ -103,7 +112,13 @@ devicefarm-mcp-server
 git clone https://github.com/yoreland/devicefarm-mcp-server.git
 cd devicefarm-mcp-server
 npm install
-node devicefarm-mcp-server.js
+npm run build
+
+# Set required environment variable
+export PROJECT_ARN='arn:aws:devicefarm:us-west-2:YOUR_ACCOUNT:project:YOUR_PROJECT_ID'
+
+# Run the server
+npm start
 ```
 
 ## Configuration
@@ -173,7 +188,7 @@ Or if installed from source:
   "mcpServers": {
     "devicefarm": {
       "command": "node",
-      "args": ["/path/to/devicefarm-mcp-server/devicefarm-mcp-server.js"],
+      "args": ["/path/to/devicefarm-mcp-server/build/index.js"],
       "env": {
         "AWS_REGION": "us-west-2",
         "AWS_PROFILE": "default",
@@ -188,13 +203,13 @@ Or if installed from source:
 
 ## Usage
 
-### Create Session with APK
+### Create Session with APK/IPA
 
 ```javascript
-// Automatically uploads and installs APK to device
+// Automatically uploads and installs app to device
 create_session({
-  apkPath: "./app.apk",
-  platform: "ANDROID",
+  applicationPath: "./app.apk",  // or "./app.ipa" for iOS
+  platform: "ANDROID",  // or "IOS"
   sessionName: "My Test Session"
 })
 ```
@@ -214,8 +229,8 @@ create_session({
 // Take screenshot
 mobile_save_screenshot({ path: "./screenshot.png" })
 
-// Click at coordinates
-mobile_click_on_screen_at_coordinates({ x: 540, y: 1200 })
+// Tap at coordinates
+mobile_tap_on_screen_at_coordinates({ x: 540, y: 1200 })
 
 // Type text
 mobile_type_keys({ text: "Hello World" })
@@ -226,11 +241,11 @@ mobile_launch_app({ appId: "com.example.app" })
 
 ## Key Features
 
-### Automatic APK Installation
+### Automatic App Installation
 
-When creating a session with `apkPath` or `appArn`, the server automatically:
-1. Uploads APK to Device Farm (if local path provided)
-2. Waits for APK processing
+When creating a session with `applicationPath` or `appArn`, the server automatically:
+1. Uploads app to Device Farm (if local path provided)
+2. Waits for app processing
 3. Creates remote access session
 4. **Automatically installs app to device** using `InstallToRemoteAccessSession` API
 
@@ -252,9 +267,11 @@ Creates a Device Farm remote access session with optional app installation.
 **Parameters:**
 - `deviceArn` (optional): Specific device ARN
 - `appArn` (optional): Pre-uploaded app ARN
-- `apkPath` (optional): Local APK file path for upload
+- `applicationPath` (optional): Local application to upload (APK file for Android and IPA for iOS)
 - `sessionName` (optional): Session name
-- `platform` (optional): "ANDROID" or "IOS"
+- `platform` (required): "ANDROID" or "IOS"
+- `os` (optional): Specific OS version
+- `preferredDevices` (optional): Preferred device name (e.g. Samsung, Google)
 
 **Returns:**
 ```json
@@ -272,14 +289,14 @@ Creates a Device Farm remote access session with optional app installation.
 
 ### mobile_install_app
 
-Uploads and installs APK to the current active session.
+Uploads and installs app (APK/IPA) to the current active session.
 
 **Parameters:**
-- `apkPath` (required): Local APK file path
+- `applicationPath` (required): Local application file path (APK for Android, IPA for iOS)
 
 **Returns:**
 ```
-App installed successfully. ARN: arn:aws:devicefarm:...
+Application installed successfully. ARN: arn:aws:devicefarm:...
 ```
 
 ## Architecture
@@ -310,9 +327,10 @@ This MCP server bridges AI assistants with AWS Device Farm's real device cloud t
 ### Technical Stack
 
 - **MCP Protocol**: Uses `@modelcontextprotocol/sdk` for tool registration
+- **TypeScript**: Full type safety with Zod validation
 - **WebdriverIO**: Appium client for mobile automation
 - **AWS SDK**: Device Farm API integration (`CreateRemoteAccessSession`, `InstallToRemoteAccessSession`)
-- **HTTPS Upload**: Direct S3 upload for APK files
+- **HTTPS Upload**: Direct S3 upload for APK/IPA files
 - **Managed Appium**: AWS-hosted Appium server (no local setup required)
 
 ### Session Workflow
@@ -324,7 +342,7 @@ This MCP server bridges AI assistants with AWS Device Farm's real device cloud t
 
 2. **App Installation** (Automatic)
    ```javascript
-   InstallToRemoteAccessSession → Installs APK to device
+   InstallToRemoteAccessSession → Installs app to device
    ```
 
 3. **Appium Connection**
@@ -334,7 +352,7 @@ This MCP server bridges AI assistants with AWS Device Farm's real device cloud t
 
 4. **Mobile Automation**
    ```javascript
-   execute('mobile: clickGesture', {x, y}) → Device performs action
+   executeScript('mobile: clickGesture', [{x, y}]) → Device performs action
    ```
 
 ## Troubleshooting
@@ -345,11 +363,11 @@ This MCP server bridges AI assistants with AWS Device Farm's real device cloud t
 - Verify Device Farm project ARN
 - Ensure device availability in your region
 
-### APK Upload Timeout
+### Application Upload Timeout
 
 - Check network connectivity
-- Verify APK file is valid
-- Increase timeout in `waitForSessionReady` function
+- Verify APK/IPA file is valid
+- Increase timeout in `waitFor` function
 
 ### Appium Commands Fail
 

@@ -1,9 +1,9 @@
 import { Tool } from '../enums/tool';
-import { Request } from '../requests/request';
+import { BaseTool } from '../tools/base-tool';
 import { z } from 'zod';
 
 export type Handlers = {
-	[K in Tool]: Request<K, z.ZodTypeAny>;
+	[K in Tool]: BaseTool<K, z.ZodTypeAny>;
 };
 
 // Helper type to ensure all Tool values are present
