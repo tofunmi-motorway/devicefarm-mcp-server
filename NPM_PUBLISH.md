@@ -1,41 +1,45 @@
-# NPM 发布指南
+# NPM Publishing Guide
 
-## ✅ 准备完成
+## ✅ Ready to Publish
 
-包已准备好发布到 npm！
+The package is ready to publish to npm!
 
-### 📦 包信息
-- **名称**: devicefarm-mcp-server
-- **版本**: 1.0.0
-- **大小**: 524.7 KB (优化后)
-- **文件**: 4 个核心文件
+### 📦 Package Information
+- **Name**: devicefarm-mcp-server
+- **Version**: 1.0.0
+- **Type**: TypeScript (compiled to JavaScript)
 
-### 📋 发布步骤
+### 📋 Publishing Steps
 
-1. **登录 npm**
+1. **Build the project**
+   ```bash
+   npm run build
+   ```
+
+2. **Login to npm**
    ```bash
    npm login
    ```
 
-2. **发布包**
+3. **Publish package**
    ```bash
    npm publish
    ```
 
-3. **验证发布**
+4. **Verify publication**
    ```bash
    npm view devicefarm-mcp-server
    ```
 
-### 🚀 用户使用方式
+### 🚀 User Usage
 
-发布后，用户可以直接使用：
+After publishing, users can directly use:
 
 ```bash
 npx devicefarm-mcp-server
 ```
 
-### 📝 MCP 配置
+### 📝 MCP Configuration
 
 ```json
 {
@@ -45,38 +49,42 @@ npx devicefarm-mcp-server
       "args": ["devicefarm-mcp-server"],
       "env": {
         "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_PROFILE": "default",
+        "PROJECT_ARN": "arn:aws:devicefarm:us-west-2:YOUR_ACCOUNT:project:YOUR_PROJECT_ID"
       }
     }
   }
 }
 ```
 
-### 🔄 更新版本
+### 🔄 Version Updates
 
-修改 package.json 中的 version，然后：
+Modify version in package.json, then:
 
 ```bash
 npm version patch  # 1.0.0 -> 1.0.1
 npm version minor  # 1.0.0 -> 1.1.0
 npm version major  # 1.0.0 -> 2.0.0
+npm run build      # Rebuild
 npm publish
 ```
 
-### ⚠️ 注意事项
+### ⚠️ Important Notes
 
-- 需要 npm 账号
-- 包名 `devicefarm-mcp-server` 必须可用
-- 首次发布可能需要邮箱验证
+- Requires npm account
+- Package name `devicefarm-mcp-server` must be available
+- First publish may require email verification
+- Must run `npm run build` before publishing
 
-### 📊 包内容
+### 📊 Package Contents
 
+TypeScript source compiled and published:
 ```
 devicefarm-mcp-server@1.0.0
-├── devicefarm-mcp-server.js  (19.1KB)
-├── README.md                 (9.4KB)
-├── package.json              (1.1KB)
+├── build/          (Compiled JavaScript)
+├── README.md
+├── package.json
 └── images/
-    └── appium-endpoint.png   (530.4KB)
+    └── appium-endpoint.png
 ```
 

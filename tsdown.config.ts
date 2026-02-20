@@ -5,7 +5,7 @@ export default defineConfig({
 	format: ['esm'],
 	platform: 'node',
 	clean: true,
-	outDir: 'dist',
+	outDir: 'build',
 	outExtensions({ format }) {
 		return { js: '.js' };
 	},
